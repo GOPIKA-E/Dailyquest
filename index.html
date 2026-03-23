@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DailyQuest</title>
+
+<style>
+* {margin:0;padding:0;box-sizing:border-box;font-family:sans-serif;}
+body {background:#0f172a;color:white;text-align:center;padding:20px;}
+h1 {color:#22c55e;text-shadow:0 0 10px #22c55e;}
+
+.card {
+  background:#1e293b;
+  padding:20px;
+  border-radius:15px;
+  margin:20px auto;
+  max-width:500px;
+  box-shadow:0 0 20px rgba(0,255,150,0.2);
+}
+
+button {
+  background:#22c55e;
+  border:none;
+  padding:10px 20px;
+  border-radius:10px;
+  margin-top:10px;
+  cursor:pointer;
+  font-weight:bold;
+}
+
+button:hover {transform:scale(1.05);}
+
+.option {
+  background:#334155;
+  padding:10px;
+  margin:8px;
+  border-radius:8px;
+  cursor:pointer;
+}
+
+.option:hover {background:#475569;}
+
+#countdown {color:#38bdf8;margin-top:10px;}
+
+.confetti {
+  position:fixed;
+  width:10px;height:10px;
+  top:-10px;
+  animation:fall 3s linear forwards;
+}
+
+@keyframes fall {
+  to {transform:translateY(100vh) rotate(360deg);}
+}
+</style>
+</head>
+
+<body>
+
+<h1>DailyQuest 🚀</h1>
+
+<div class="card">
+  <h2>🔥 Streak: <span id="streak">0</span></h2>
+  <div id="countdown"></div>
+  <button onclick="startChallenge()">Start Challenge</button>
+</div>
+
+<div class="card" id="challengeBox" style="display:none;">
+  <h2 id="question"></h2>
+  <div id="options"></div>
+</div>
+
+<div class="card" id="resultBox" style="display:none;">
+  <h2 id="resultText"></h2>
+  <input id="username" placeholder="Your name">
+  <button onclick="submitScore()">Submit Score</button>
+</div>
+
+<div class="card">
+  <h2>🏆 Leaderboard</h2>
+  <ul id="leaderboard"></ul>
+</div>
+
+<script>
+// CHALLENGES
+const challenges = [
+  {type:"quiz", q:"Capital of Japan?", a:["Tokyo","Seoul","Beijing","Bangkok"], correct:0},
+  {type:"quiz", q:"Which is a programming language?", a:["HTML","CSS","Python","Photoshop"], correct:2},
+  {type:"scramble", word:"JAVASCRIPT"},
+  {type:"math", q:"8 × 7 = ?", correct:56},
+  {type:"memory", sequence:[3,1,4,2]},
+  {type:"pattern", q:"2, 4, 8, 16, ?", correct:32},
+  {type:"quiz", q:"Fastest land animal?", a:["Lion","Tiger","Cheetah","Horse"], correct:2}
+];
+
+// GET TODAY
+function getTodayChallenge() {
+  return challenges[new Date().getDay()];
+}
+
+// START
+function startChallenge() {
+  const c = getTodayChallenge();
+  document.getElementById("challengeBox").style.display="block";
+  document.getElementById("resultBox").style.display="none";
+
+  const q = document.getElementById("question");
+  const opt = document.getElementById("options");
+  opt.innerHTML="";
+
+  // QUIZ
+  if(c.type==="quiz"){
+    q.innerText=c.q;
+    c.a.forEach((o,i)=>{
+      const div=document.createElement("div");
+      div.className="option";
+      div.innerText=o;
+      div.onclick=()=>checkAnswer(i===c.correct);
+      opt.appendChild(div);
+    });
+  }
+
+  // SCRAMBLE
+  if(c.type==="scramble"){
+    const s=c.word.split('').sort(()=>0.5-Math.random()).join('');
+    q.innerText="Unscramble: "+s;
+
+    const input=document.createElement("input");
+    const btn=document.createElement("button");
+    btn.innerText="Submit";
+
+    btn.onclick=()=>checkAnswer(input.value.toUpperCase()===c.word);
+
+    opt.appendChild(input);
+    opt.appendChild(btn);
+  }
+
+  // MATH
+  if(c.type==="math"){
+    q.innerText=c.q;
+    const input=document.createElement("input");
+    input.type="number";
+    const btn=document.createElement("button");
+
+    btn.innerText="Submit";
+    btn.onclick=()=>checkAnswer(Number(input.value)===c.correct);
+
+    opt.appendChild(input);
+    opt.appendChild(btn);
+  }
+
+  // MEMORY
+  if(c.type==="memory"){
+    q.innerText="Memorize: "+c.sequence.join(" ");
+
+    setTimeout(()=>{
+      q.innerText="Enter sequence (space separated)";
+      opt.innerHTML="";
+
+      const input=document.createElement("input");
+      const btn=document.createElement("button");
+
+      btn.innerText="Submit";
+      btn.onclick=()=>{
+        const user=input.value.split(" ").map(Number);
+        checkAnswer(JSON.stringify(user)===JSON.stringify(c.sequence));
+      };
+
+      opt.appendChild(input);
+      opt.appendChild(btn);
+    },2000);
+  }
+
+  // PATTERN
+  if(c.type==="pattern"){
+    q.innerText=c.q;
+
+    const input=document.createElement("input");
+    const btn=document.createElement("button");
+
+    btn.innerText="Submit";
+    btn.onclick=()=>checkAnswer(Number(input.value)===c.correct);
+
+    opt.appendChild(input);
+    opt.appendChild(btn);
+  }
+}
+
+// CHECK
+function checkAnswer(correct){
+  document.getElementById("challengeBox").style.display="none";
+  document.getElementById("resultBox").style.display="block";
+
+  if(correct){
+    document.getElementById("resultText").innerText="🎉 Correct!";
+    updateStreak(true);
+    confetti();
+  } else {
+    document.getElementById("resultText").innerText="❌ Wrong!";
+    updateStreak(false);
+  }
+}
+
+// STREAK
+function updateStreak(success){
+  let streak=localStorage.getItem("streak")||0;
+  let last=localStorage.getItem("lastDate");
+  const today=new Date().toDateString();
+
+  if(success){
+    if(last!==today){
+      streak++;
+      localStorage.setItem("streak",streak);
+      localStorage.setItem("lastDate",today);
+    }
+  } else {
+    streak=0;
+    localStorage.setItem("streak",0);
+  }
+
+  document.getElementById("streak").innerText=streak;
+}
+
+document.getElementById("streak").innerText=localStorage.getItem("streak")||0;
+
+// LEADERBOARD
+function submitScore(){
+  const name=document.getElementById("username").value||"Player";
+  let scores=JSON.parse(localStorage.getItem("scores"))||[];
+
+  scores.push({name,score:1});
+  scores.sort((a,b)=>b.score-a.score);
+
+  localStorage.setItem("scores",JSON.stringify(scores));
+  loadLeaderboard();
+}
+
+function loadLeaderboard(){
+  let scores=JSON.parse(localStorage.getItem("scores"))||[];
+  const list=document.getElementById("leaderboard");
+  list.innerHTML="";
+
+  scores.slice(0,5).forEach(s=>{
+    const li=document.createElement("li");
+    li.innerText=`${s.name} - ${s.score}`;
+    list.appendChild(li);
+  });
+}
+
+loadLeaderboard();
+
+// COUNTDOWN
+function countdown(){
+  const now=new Date();
+  const next=new Date();
+  next.setHours(24,0,0,0);
+
+  const diff=next-now;
+  const h=Math.floor(diff/1000/60/60);
+  const m=Math.floor((diff/1000/60)%60);
+  const s=Math.floor((diff/1000)%60);
+
+  document.getElementById("countdown").innerText=
+    `Next challenge in ${h}h ${m}m ${s}s`;
+}
+setInterval(countdown,1000);
+
+// CONFETTI
+function confetti(){
+  for(let i=0;i<50;i++){
+    const c=document.createElement("div");
+    c.className="confetti";
+    c.style.left=Math.random()*100+"vw";
+    c.style.background=`hsl(${Math.random()*360},100%,50%)`;
+    document.body.appendChild(c);
+    setTimeout(()=>c.remove(),3000);
+  }
+}
+</script>
+
+</body>
+</html>
